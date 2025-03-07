@@ -99,6 +99,27 @@ def conv_fast(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     return out
 
 
+def quarter_roll(img: np.ndarray, new_h: int, num_w: int) -> np.ndarray:
+    """Pads the image and rolls the images quarters so that they get into corners
+
+    Args:
+        img: numpy array of shape (Hi, Wi).
+        new_h: height of result
+        new_w: width if result
+
+    Returns:
+        img_rolled: numpy array of shape (new_h, new_w).
+    """
+    Hi, Wi = img.shape
+    roll_height = Hi // 2
+    roll_width = Wi // 2
+
+    img_rolled = np.zeros((new_h, num_w), dtype=img.dtype)
+    img_rolled[:Hi, :Wi] = img
+    img_rolled = np.roll(img_rolled, shift=(-roll_height, -roll_width), axis=(0, 1))
+    return img_rolled
+
+
 def conv_faster(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     """
     Args:
@@ -111,11 +132,15 @@ def conv_faster(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     Hi, Wi = image.shape
     Hk, Wk = kernel.shape
 
-    fourier_image = np.fft.ifft2(image)
-    fourier_kernel = np.fft.ifft2(kernel, (Hi, Wi))
+    padded_image = np.zeros([max(Hi, Wi), max(Hi, Wi)], dtype=image.dtype)
+    padded_image[:Hi, :Wi] = image
+    padded_kernel = quarter_roll(kernel, max(Hi, Wi), max(Hi, Wi))
+
+    fourier_image = np.fft.ifft2(padded_image)
+    fourier_kernel = np.fft.ifft2(padded_kernel)
     fourier_out = fourier_image * fourier_kernel
 
-    return np.real(np.fft.fft2(fourier_out))
+    return np.real(np.fft.fft2(fourier_out))[:Hi, :Wi]
 
 
 def cross_correlation(f: np.ndarray, g: np.ndarray) -> np.ndarray:
